@@ -17,20 +17,14 @@ import (
 type Corpus struct {
 	opened bool
 	name   string
-	list   []item
+	names  []string
+	xml    [][]byte
 	idx    map[string]int
-	data   []byte
 }
 
 type Range struct {
-	c *Corpus
+	c   *Corpus
 	idx int
-}
-
-type item struct {
-	name   string
-	offset uint64
-	size   uint64
 }
 
 // Return an iterator for the corpus
@@ -40,7 +34,7 @@ func (c *Corpus) NewRange() (r *Range, err error) {
 		return
 	}
 	r = &Range{
-		c: c,
+		c:   c,
 		idx: 0,
 	}
 	return
@@ -56,10 +50,9 @@ func (r *Range) Next() (name string, xml []byte) {
 	if r.idx == len(r.c.idx) {
 		return
 	}
+	name = r.c.names[r.idx]
+	xml = r.c.xml[r.idx]
 	r.idx++
-	item := r.c.list[r.idx-1]
-	name = item.name
-	xml = r.c.data[item.offset:item.offset+item.size]
 	return
 }
 
@@ -74,16 +67,16 @@ func (c *Corpus) Get(name string) (xml []byte, err error) {
 		err = fmt.Errorf("Item '%v' not found in corpus '%v'", c.name, name)
 		return
 	}
-	item := c.list[i]
-	xml = c.data[item.offset:item.offset+item.size]
+	xml = c.xml[i]
 	return
 }
 
 // Open a compact corpus for reading
 func Open(name string) (corpus *Corpus, err error) {
 	corpus = &Corpus{
-		list: make([]item, 0),
-		idx:  make(map[string]int),
+		names: make([]string, 0),
+		xml:   make([][]byte, 0),
+		idx:   make(map[string]int),
 	}
 
 	i := len(name)
@@ -94,45 +87,8 @@ func Open(name string) (corpus *Corpus, err error) {
 	}
 	corpus.name = name
 
-	var fp *os.File
-	curfile := name + ".index"
-	fp, err = os.Open(curfile)
-	if err != nil {
-		return
-	}
-	defer fp.Close()
-	lineno := 0
-	scanner := bufio.NewScanner(fp)
-	for scanner.Scan() {
-		line := scanner.Text()
-		lineno++
-		a := strings.Fields(line)
-		if len(a) != 3 {
-			err = fmt.Errorf("Invalid number of fields in file '%s.index', line %d", curfile, lineno)
-			return
-		}
-		it := item{
-			name: a[0],
-		}
-		it.offset, err = decode(a[1])
-		if err != nil {
-			err = fmt.Errorf("%v in file '%s.index', line %d", curfile, lineno)
-			return
-		}
-		it.size, err = decode(a[2])
-		if err != nil {
-			err = fmt.Errorf("%v in file '%s.index', line %d", curfile, lineno)
-			return
-		}
-		corpus.idx[it.name] = len(corpus.list)
-		corpus.list = append(corpus.list, it)
-	}
-	if err = scanner.Err(); err != nil {
-		return
-	}
-
 	var fp2 *os.File
-	curfile = name + ".data.dz"
+	curfile := name + ".data.dz"
 	fp2, err = os.Open(curfile)
 	if err != nil {
 		return
@@ -142,8 +98,49 @@ func Open(name string) (corpus *Corpus, err error) {
 	if err != nil {
 		return
 	}
-	corpus.data, err = ioutil.ReadAll(gz)
+	var data []byte
+	data, err = ioutil.ReadAll(gz)
 	if err != nil {
+		return
+	}
+
+	var fp *os.File
+	curfile = name + ".index"
+	fp, err = os.Open(curfile)
+	if err != nil {
+		return
+	}
+	defer fp.Close()
+	lineno := 0
+	scanner := bufio.NewScanner(fp)
+	for scanner.Scan() {
+		var offset, size uint64
+		line := scanner.Text()
+		lineno++
+		a := strings.Fields(line)
+		if len(a) != 3 {
+			err = fmt.Errorf("Invalid number of fields in file '%s.index', line %d", curfile, lineno)
+			return
+		}
+		corpus.idx[a[0]] = len(corpus.names)
+		corpus.names = append(corpus.names, a[0])
+		offset, err = decode(a[1])
+		if err != nil {
+			err = fmt.Errorf("%v in file '%s.index', line %d", curfile, lineno)
+			return
+		}
+		size, err = decode(a[2])
+		if err != nil {
+			err = fmt.Errorf("%v in file '%s.index', line %d", curfile, lineno)
+			return
+		}
+		if offset+size >= uint64(len(data)) {
+			err = fmt.Errorf("Data in file '%s.data.dz' is too short", name)
+			return
+		}
+		corpus.xml = append(corpus.xml, data[offset:offset+size])
+	}
+	if err = scanner.Err(); err != nil {
 		return
 	}
 
