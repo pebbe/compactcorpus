@@ -1,10 +1,10 @@
-
 package compactcorpus
 
 import (
 	"bufio"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -82,9 +82,9 @@ func (c *RaCorpus) Close() {
 // See also: Open()
 func RaOpen(name string) (corpus *RaCorpus, err error) {
 	corpus = &RaCorpus{
-		names: make([]string, 0),
+		names:  make([]string, 0),
 		values: make([][2]int64, 0),
-		idx:   make(map[string]int),
+		idx:    make(map[string]int),
 	}
 
 	i := len(name)
@@ -144,17 +144,7 @@ func RaOpen(name string) (corpus *RaCorpus, err error) {
 
 	corpus.opened = true
 
+	runtime.SetFinalizer(corpus, (*RaCorpus).Close)
+
 	return
 }
-
-
-
-
-
-
-
-
-
-
-
-
