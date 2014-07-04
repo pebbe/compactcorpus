@@ -60,15 +60,15 @@ func (w *Writer) Close() error {
 	return w.err
 }
 
-func (w *Writer) Write(name string, data []byte) error {
+func (w *Writer) Write(name string, xml []byte) error {
 	name = strings.TrimSpace(name)
 	if len(name) == 0 {
 		return errEmptyName
 	}
 
-	w.dz.Write(data)
+	w.dz.Write(xml)
 
-	ln := uint64(len(data))
+	ln := uint64(len(xml))
 	off := encode(w.size)
 	size := encode(ln)
 	fmt.Fprintf(w.idx, "%s\t%s\t%s\n", name, off, size)
@@ -78,14 +78,14 @@ func (w *Writer) Write(name string, data []byte) error {
 	return nil
 }
 
-func (w *Writer) WriteString(name string, data string) error {
-	return w.Write(name, []byte(data))
+func (w *Writer) WriteString(name string, xml string) error {
+	return w.Write(name, []byte(xml))
 }
 
 func (w *Writer) WriteFile(filename string) error {
-	data, err := ioutil.ReadFile(filename)
+	xml, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
 	}
-	return w.Write(filename, data)
+	return w.Write(filename, xml)
 }
