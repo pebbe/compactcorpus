@@ -87,12 +87,7 @@ func RaOpen(name string) (corpus *RaCorpus, err error) {
 		idx:    make(map[string]int),
 	}
 
-	i := len(name)
-	if strings.HasSuffix(name, ".data.dz") {
-		name = name[:i-8]
-	} else if strings.HasSuffix(name, ".index") {
-		name = name[:i-6]
-	}
+	name = root(name)
 	corpus.name = name
 
 	var fp *os.File
