@@ -22,6 +22,8 @@ type Writer struct {
 	opened bool
 }
 
+// Start creating a new corpus.
+// The corpus will not be written completely until Close() is called.
 func NewCorpus(filename string) (*Writer, error) {
 	name := root(filename)
 
