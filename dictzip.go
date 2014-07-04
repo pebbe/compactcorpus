@@ -48,9 +48,9 @@ func write(r io.Reader, filename string, level int) error {
 	total := int64(0)
 	eof := false
 	for !eof {
-		n, err := readfull(r, b)
+		n, err := io.ReadFull(r, b)
 		if err != nil {
-			if err != io.EOF {
+			if err != io.EOF && err != io.ErrUnexpectedEOF {
 				return err
 			} else {
 				eof = true
@@ -149,7 +149,7 @@ func newReader(rs io.ReadSeeker) (*reader, error) {
 	p := 0
 
 	h := make([]byte, 10)
-	n, err := readfull(dz.fp, h)
+	n, err := io.ReadFull(dz.fp, h)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func newReader(rs io.ReadSeeker) (*reader, error) {
 
 	if flg&4 != 0 {
 		h := make([]byte, 2)
-		n, err := readfull(dz.fp, h)
+		n, err := io.ReadFull(dz.fp, h)
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +175,7 @@ func newReader(rs io.ReadSeeker) (*reader, error) {
 
 		xlen := int(h[0]) + 256*int(h[1])
 		h = make([]byte, xlen)
-		n, err = readfull(dz.fp, h)
+		n, err = io.ReadFull(dz.fp, h)
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +200,7 @@ func newReader(rs io.ReadSeeker) (*reader, error) {
 		if flg&f != 0 {
 			h := make([]byte, 1)
 			for {
-				n, err := readfull(dz.fp, h)
+				n, err := io.ReadFull(dz.fp, h)
 				if err != nil {
 					return nil, err
 				}
@@ -214,7 +214,7 @@ func newReader(rs io.ReadSeeker) (*reader, error) {
 
 	if flg&2 != 0 {
 		h := make([]byte, 2)
-		n, err := readfull(dz.fp, h)
+		n, err := io.ReadFull(dz.fp, h)
 		if err != nil {
 			return nil, err
 		}
@@ -271,7 +271,7 @@ func (dz *reader) get(start, size int64) ([]byte, error) {
 	rd := flate.NewReader(dz.fp)
 
 	data := make([]byte, size1)
-	_, err = readfull(rd, data)
+	_, err = io.ReadFull(rd, data)
 	if err != nil {
 		return nil, err
 	}
@@ -292,20 +292,3 @@ func (dz *reader) getB64(start, size string) ([]byte, error) {
 	return dz.get(int64(start2), int64(size2))
 }
 
-//. Helper function
-
-func readfull(fp io.Reader, buf []byte) (int, error) {
-	ln := len(buf)
-	for p := 0; p < ln; {
-		n, err := fp.Read(buf[p:])
-		p += n
-		if err != nil {
-			if err != io.EOF || p < ln {
-				return p, err
-			} else {
-				return p, nil
-			}
-		}
-	}
-	return ln, nil
-}
