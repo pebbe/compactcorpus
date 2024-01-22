@@ -61,7 +61,7 @@ func (c *RaCorpus) Get(name string) (xml []byte, err error) {
 	}
 	i, ok := c.idx[name]
 	if !ok {
-		err = fmt.Errorf("Item '%v' not found in corpus '%v'", c.name, name)
+		err = fmt.Errorf("Item '%v' not found in corpus '%v'", name, c.name)
 		return
 	}
 	v := c.values[i]
